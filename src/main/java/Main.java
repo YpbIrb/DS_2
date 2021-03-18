@@ -3,9 +3,15 @@ import org.apache.commons.compress.compressors.zstandard.ZstdCompressorOutputStr
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import javax.xml.XMLConstants;
+import javax.xml.bind.JAXBException;
+import javax.xml.bind.Unmarshaller;
 import javax.xml.stream.*;
+import javax.xml.stream.util.StreamReaderDelegate;
 import java.io.*;
 import java.util.Comparator;
+import javax.xml.bind.JAXBContext;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -14,6 +20,8 @@ public class Main {
     private static Logger logger = LogManager.getLogger(Main.class);
 
     public static void main(String[] args) {
+
+
 
 
         System.out.println("Hello world");
@@ -49,8 +57,13 @@ public class Main {
             logger.error(e.getMessage(), e);
         } catch (XMLStreamException e) {
             logger.error(e.getMessage(), e);
+        } catch (JAXBException e) {
+            e.printStackTrace();
         }
+
+
     }
+
 
     private static void WriteResults(Map<String, Integer> userEditsCount, Map<String, Integer> tagNodeCount, PrintWriter pw){
 

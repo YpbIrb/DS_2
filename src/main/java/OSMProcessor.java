@@ -1,9 +1,25 @@
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+//import javax.xml.XMLConstants;
+import javax.xml.bind.JAXBContext;
+import javax.xml.bind.JAXBElement;
+import javax.xml.bind.JAXBException;
+import javax.xml.bind.Unmarshaller;
+import javax.xml.namespace.NamespaceContext;
+import javax.xml.stream.XMLStreamConstants;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
+import javax.xml.stream.util.StreamReaderDelegate;
+import java.io.FileNotFoundException;
+import java.util.Iterator;
 import java.util.Map;
+
+import org.eclipse.persistence.oxm.XMLConstants;
+import osm.model.generated.Node;
+import osm.model.generated.ObjectFactory;
+import osm.model.generated.Osm;
+import osm.model.generated.Tag;
 
 public class OSMProcessor {
 
@@ -15,51 +31,59 @@ public class OSMProcessor {
     }
 
     //Заполняет входные мапы в соответствии с заданием
-    public void ProcessOSM(Map<String, Integer> userEditsCount, Map<String, Integer> tagNodeCount) throws XMLStreamException {
+    public void ProcessOSM(Map<String, Integer> userEditsCount, Map<String, Integer> tagNodeCount) throws XMLStreamException, JAXBException {
 
-        xmlReader.nextTag();
-        while (! xmlReader.getLocalName().equals("node"))
-            xmlReader.nextTag();                               //skip all elements before nodes
+        XMLStreamReader xsr;
+        xsr = new XsiTypeReader(xmlReader);
+
+
+        JAXBContext jc = JAXBContext.newInstance(Node.class);
+        Unmarshaller unmarshaller = jc.createUnmarshaller();
+
+        System.out.println("Done");
+
+
+        xsr.nextTag();
+        while (! xsr.getLocalName().equals("node"))
+            xsr.nextTag();                               //skip all elements before nodes
 
         int n = 0;
         int last_logged_node_num = 0;
-        while(xmlReader.getLocalName().equals("node")){
-            ProcessNode(xmlReader, userEditsCount, tagNodeCount);
+        Object object;
+        Node node;
+
+        while(xsr.getLocalName().equals("node") && xsr.getEventType() == XMLStreamConstants.START_ELEMENT){
+            object = unmarshaller.unmarshal(xsr);
+            node =  (Node)object;
+            ProcessNode(node, userEditsCount, tagNodeCount);
             n++;
             if (n == (last_logged_node_num + 1000000)){
                 last_logged_node_num = n;
                 logger.info("Done with " + last_logged_node_num + " node");
             }
-        }
-        logger.info("Finish on " + last_logged_node_num + " node");
 
+            xsr.nextTag();
+        }
+
+        logger.info("Finish on " + last_logged_node_num + " node");
     }
 
+    void ProcessNode(Node node, Map<String, Integer> userEditsCount, Map<String, Integer> tagNodeCount) {
 
-    //Обрабатывает ноду, в результате оставляя курсор на следующей ноде, или после последней ноды.
-    void ProcessNode(XMLStreamReader xmlReader, Map<String, Integer> userEditsCount, Map<String, Integer> tagNodeCount) throws XMLStreamException {
-
-        String user = xmlReader.getAttributeValue(null, "user");
-
-        if(userEditsCount.containsKey(user)){
-            userEditsCount.replace(user, userEditsCount.get(user) + 1);
+        if(userEditsCount.containsKey(node.getUser())){
+            userEditsCount.replace(node.getUser(), userEditsCount.get(node.getUser()) + 1);
         }
         else {
-            userEditsCount.put(user, 1);
+            userEditsCount.put(node.getUser(), 1);
         }
 
-        xmlReader.nextTag();
-
-        while (xmlReader.getLocalName().equals("tag")){
-            ProcessTag(xmlReader, tagNodeCount);
+        for (Tag tag: node.getTag()) {
+            ProcessTag(tag, tagNodeCount);
         }
-        xmlReader.nextTag();
     }
 
-    //Обрабатывает тэг, перемешая курсор после закрытия данного тэга.
-    void ProcessTag(XMLStreamReader xmlReader, Map<String, Integer> tagNodeCount) throws XMLStreamException {
-        String tagKey = xmlReader.getAttributeValue(null, "k");
-
+    void ProcessTag(Tag tag, Map<String, Integer> tagNodeCount) {
+        String tagKey = tag.getK();
         //Согласно вики по OpenStreetMap https://wiki.openstreetmap.org/wiki/Node у одной Node не может быть двух тегов с одинаковыми ключами
         if(tagNodeCount.containsKey(tagKey)){
             tagNodeCount.replace(tagKey, tagNodeCount.get(tagKey) + 1);
@@ -67,10 +91,40 @@ public class OSMProcessor {
         else {
             tagNodeCount.put(tagKey, 1);
         }
-
-        //Переход на закрытие тэга, и на следующий после него тэг
-        xmlReader.nextTag();
-        xmlReader.nextTag();
     }
+
+
+    //Кастомный ридер для того, чтобы можно было парсить xml, в которой пропущены пространства имен
+    private static class XsiTypeReader extends StreamReaderDelegate {
+
+        public XsiTypeReader(XMLStreamReader reader) {
+            super(reader);
+        }
+
+        @Override
+        public String getNamespacePrefix(int arg0) {
+            return "http://openstreetmap.org/osm/0.6";
+        }
+
+        @Override
+        public String getNamespaceURI(int arg0) {
+            return "http://openstreetmap.org/osm/0.6";
+        }
+
+        @Override
+        public String getNamespaceURI() {
+            return "http://openstreetmap.org/osm/0.6";
+        }
+
+
+        @Override
+        public String getNamespaceURI(String prefix) {
+            return "http://openstreetmap.org/osm/0.6";
+        }
+
+    }
+
+
+
 
 }
