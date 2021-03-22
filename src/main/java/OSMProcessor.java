@@ -1,25 +1,28 @@
+import DAO.NodeDAO;
+import DAO.NodeDTO;
+import DAO.TagDAO;
+import DAO.TagDTO;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 //import javax.xml.XMLConstants;
 import javax.xml.bind.JAXBContext;
-import javax.xml.bind.JAXBElement;
 import javax.xml.bind.JAXBException;
 import javax.xml.bind.Unmarshaller;
-import javax.xml.namespace.NamespaceContext;
 import javax.xml.stream.XMLStreamConstants;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
 import javax.xml.stream.util.StreamReaderDelegate;
-import java.io.FileNotFoundException;
-import java.util.Iterator;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
-import org.eclipse.persistence.oxm.XMLConstants;
 import osm.model.generated.Node;
-import osm.model.generated.ObjectFactory;
-import osm.model.generated.Osm;
 import osm.model.generated.Tag;
+import utility.Converter;
+import utility.DatabaseController;
 
 public class OSMProcessor {
 
@@ -30,8 +33,7 @@ public class OSMProcessor {
         this.xmlReader = xmlReader;
     }
 
-    //Заполняет входные мапы в соответствии с заданием
-    public void ProcessOSM(Map<String, Integer> userEditsCount, Map<String, Integer> tagNodeCount) throws XMLStreamException, JAXBException {
+    public void ProcessOSM(Map<String, Integer> userEditsCount, Map<String, Integer> tagNodeCount, NodeProcessor nodeProcessor) throws XMLStreamException, JAXBException, SQLException {
 
         XMLStreamReader xsr;
         xsr = new XsiTypeReader(xmlReader);
@@ -55,20 +57,33 @@ public class OSMProcessor {
         while(xsr.getLocalName().equals("node") && xsr.getEventType() == XMLStreamConstants.START_ELEMENT){
             object = unmarshaller.unmarshal(xsr);
             node =  (Node)object;
-            ProcessNode(node, userEditsCount, tagNodeCount);
+
+            //ProcessNodeLocally(node, userEditsCount, tagNodeCount);
             n++;
+
             if (n == (last_logged_node_num + 1000000)){
                 last_logged_node_num = n;
                 logger.info("Done with " + last_logged_node_num + " node");
             }
 
+            nodeProcessor.ProcessNodeStatement(Converter.NodeToDTO(node));
+            //nodeProcessor.ProcessNodePreparedStatement(Converter.NodeToDTO(node));
+            //nodeProcessor.ProcessNodeBatch(Converter.NodeToDTO(node));
+
             xsr.nextTag();
         }
 
+
+
+        //if(!nodeProcessor.IsBatchEmpty())
+        //    nodeProcessor.FlushBatch();
+
+        double elapsedTimeInSecond = (double) nodeProcessor.getTotal_time() / 1000000000;
+        logger.info("Total time : " + elapsedTimeInSecond + " seconds");
         logger.info("Finish on " + last_logged_node_num + " node");
     }
 
-    void ProcessNode(Node node, Map<String, Integer> userEditsCount, Map<String, Integer> tagNodeCount) {
+    void ProcessNodeLocally(Node node, Map<String, Integer> userEditsCount, Map<String, Integer> tagNodeCount) {
 
         if(userEditsCount.containsKey(node.getUser())){
             userEditsCount.replace(node.getUser(), userEditsCount.get(node.getUser()) + 1);
@@ -78,11 +93,12 @@ public class OSMProcessor {
         }
 
         for (Tag tag: node.getTag()) {
-            ProcessTag(tag, tagNodeCount);
+            ProcessTagLocally(tag, tagNodeCount);
         }
+
     }
 
-    void ProcessTag(Tag tag, Map<String, Integer> tagNodeCount) {
+    void ProcessTagLocally(Tag tag, Map<String, Integer> tagNodeCount) {
         String tagKey = tag.getK();
         //Согласно вики по OpenStreetMap https://wiki.openstreetmap.org/wiki/Node у одной Node не может быть двух тегов с одинаковыми ключами
         if(tagNodeCount.containsKey(tagKey)){
@@ -92,7 +108,6 @@ public class OSMProcessor {
             tagNodeCount.put(tagKey, 1);
         }
     }
-
 
     //Кастомный ридер для того, чтобы можно было парсить xml, в которой пропущены пространства имен
     private static class XsiTypeReader extends StreamReaderDelegate {
@@ -123,8 +138,6 @@ public class OSMProcessor {
         }
 
     }
-
-
 
 
 }

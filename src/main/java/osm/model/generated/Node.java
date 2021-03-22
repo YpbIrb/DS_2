@@ -68,8 +68,8 @@ public class Node {
     @XmlAttribute(name = "uid")
     @XmlSchemaType(name = "unsignedLong")
     protected BigInteger uid;
-    @XmlAttribute(name = "visible")
-    protected Boolean visible;
+    //@XmlAttribute(name = "visible")
+    //protected Boolean visible;
     @XmlAttribute(name = "version")
     @XmlSchemaType(name = "unsignedLong")
     protected BigInteger version;
@@ -237,9 +237,9 @@ public class Node {
      *     {@link Boolean }
      *     
      */
-    public Boolean isVisible() {
-        return visible;
-    }
+    //public Boolean isVisible() {
+    //    return visible;
+    //}
 
     /**
      * Sets the value of the visible property.
@@ -249,9 +249,9 @@ public class Node {
      *     {@link Boolean }
      *     
      */
-    public void setVisible(Boolean value) {
-        this.visible = value;
-    }
+    //public void setVisible(Boolean value) {
+    //    this.visible = value;
+    //}
 
     /**
      * Gets the value of the version property.
@@ -329,11 +329,19 @@ public class Node {
     public String toString() {
         String res = new String("Node : {\n" +
                 "user : " + user + "\n" +
-                "uid : " + uid + "\n");
+                "uid : " + uid + "\n") +
+                "lat: " + lat + "\n" +
+                "id:" + id + "\n" +
+                "version: " + version + "\n" +
+                "changeset: " + changeset + "\n" +
+                "timestomp: " + timestamp + "\n";
 
-        for (Tag e: tag) {
-            res = res + "tag : {" + e + "}\n";
+        if (tag != null){
+            for (Tag e: tag) {
+                res = res + "tag : {" + e + "}\n";
+            }
         }
+
 
         res += "}";
 

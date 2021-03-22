@@ -53,6 +53,9 @@ dependencies {
     jaxb 'com.sun.xml.bind:jaxb-impl:2.2.7-b41'
     jaxb 'javax.xml.bind:jaxb-api:2.2.7'
 
+    implementation group: 'org.postgresql', name: 'postgresql', version: '42.1.4'
+    //implementation group: 'org.postgresql', name: 'postgresql', version: '9.3-1100-jdbc4'
+
 }
 
 
